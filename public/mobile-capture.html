@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selfie Verification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .session-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .camera-container {
+            position: relative;
+            margin: 30px 0;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 300px;
+            height: 225px;
+            border-radius: 15px;
+            background: #f0f0f0;
+            object-fit: cover;
+            border: 3px solid #ddd;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+
+        .status.warning {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            color: #ef6c00;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+
+        .timer.warning {
+            color: #fd7e14;
+        }
+
+        .timer.danger {
+            color: #dc3545;
+        }
+
+        .attempts-info {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+                padding: 20px 15px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            button {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Selfie Verification</h1>
+            <p>Please capture a clear selfie to complete verification</p>
+        </div>
+
+        <div class="session-info">
+            <div>Session: <span id="session-display">Loading...</span></div>
+            <div class="timer" id="timer">Time remaining: --:--</div>
+            <div class="attempts-info" id="attempts-info">Attempts: 0/3</div>
+        </div>
+
+        <div class="camera-container">
+            <video id="video" autoplay playsinline>
+                Your browser doesn't support video capture
+            </video>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <button id="start-camera-btn" class="btn-primary">📷 Start Camera</button>
+            <button id="capture-btn" class="btn-success hidden" disabled>📸 Capture Selfie</button>
+            <button id="retake-btn" class="btn-secondary hidden">🔄 Retake</button>
+            <button id="upload-btn" class="btn-primary hidden" disabled>📤 Upload</button>
+        </div>
+
+        <div id="status" class="status info">
+            Preparing camera...
+        </div>
+    </div>
+
+    <script>
+        class SelfieCapture {
+            constructor() {
+                this.sessionId = new URLSearchParams(window.location.search).get('session');
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.stream = null;
+                this.capturedImage = null;
+                this.sessionInfo = null;
+                this.timerInterval = null;
+
+                this.initializeElements();
+                this.bindEvents();
+                this.loadSessionInfo();
+            }
+
+            initializeElements() {
+                this.elements = {
+                    startCameraBtn: document.getElementById('start-camera-btn'),
+                    captureBtn: document.getElementById('capture-btn'),
+                    retakeBtn: document.getElementById('retake-btn'),
+                    uploadBtn: document.getElementById('upload-btn'),
+                    status: document.getElementById('status'),
+                    sessionDisplay: document.getElementById('session-display'),
+                    timer: document.getElementById('timer'),
+                    attemptsInfo: document.getElementById('attempts-info')
+                };
+            }
+
+            bindEvents() {
+                this.elements.startCameraBtn.addEventListener('click', () => this.startCamera());
+                this.elements.captureBtn.addEventListener('click', () => this.captureSelfie());
+                this.elements.retakeBtn.addEventListener('click', () => this.retake());
+                this.elements.uploadBtn.addEventListener('click', () => this.uploadSelfie());
+            }
+
+            async loadSessionInfo() {
+                if (!this.sessionId) {
+                    this.updateStatus('No session ID provided', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/session-info/${this.sessionId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error('Session not found or expired');
+                    }
+
+                    this.sessionInfo = await response.json();
+                    this.updateSessionDisplay();
+                    this.startTimer();
+
+                    if (this.sessionInfo.status !== 'pending') {
+                        this.updateStatus('Session already completed', 'warning');
+                        return;
+                    }
+
+                } catch (error) {
+                    this.updateStatus(`Error: ${error.message}`, 'error');
+                }
+            }
+
+            updateSessionDisplay() {
+                this.elements.sessionDisplay.textContent = this.sessionId.substring(0, 8) + '...';
+                this.elements.attemptsInfo.textContent = 
+                    `Attempts: ${this.sessionInfo.attempts}/${this.sessionInfo.maxAttempts}`;
+            }
+
+            startTimer() {
+                if (!this.sessionInfo) return;
+
+                this.timerInterval = setInterval(() => {
+                    const now = Date.now();
+                    const timeRemaining = Math.max(0, this.sessionInfo.expiresAt - now);
+                    
+                    if (timeRemaining <= 0) {
+                        clearInterval(this.timerInterval);
+                        this.updateStatus('Session expired', 'error');
+                        this.disableAllButtons();
+                        return;
+                    }
+
+                    const minutes = Math.floor(timeRemaining / 60000);
+                    const seconds = Math.floor((timeRemaining % 60000) / 1000);
+                    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                    this.elements.timer.textContent = `Time remaining: ${timeString}`;
+                    
+                    // Change timer color based on remaining time
+                    this.elements.timer.className = 'timer';
+                    if (timeRemaining < 60000) { // < 1 minute
+                        this.elements.timer.className += ' danger';
+                    } else if (timeRemaining < 120000) { // < 2 minutes
+                        this.elements.timer.className += ' warning';
+                    }
+                }, 1000);
+            }
+
+            async startCamera() {
+                try {
+                    this.updateStatus('Starting camera...', 'info');
+                    
+                    this.stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user' // Front camera
+                        } 
+                    });
+                    
+                    this.video.srcObject = this.stream;
+                    
+                    this.video.onloadedmetadata = () => {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                        
+                        this.elements.startCameraBtn.classList.add('hidden');
+                        this.elements.captureBtn.classList.remove('hidden');
+                        this.elements.captureBtn.disabled = false;
+                        
+                        this.updateStatus('Camera ready. Position your face in the frame and click capture.', 'success');
+                    };
+                    
+                } catch (error) {
+                    console.error('Camera error:', error);
+                    this.updateStatus('Camera access denied or not available. Please allow camera access.', 'error');
+                }
+            }
+
+            captureSelfie() {
+                if (!this.stream) {
+                    this.updateStatus('Camera not ready', 'error');
+                    return;
+                }
+
+                // Draw video frame to canvas
+                this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+                
+                // Convert to base64
+                this.capturedImage = this.canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Show captured image
+                this.video.style.display = 'none';
+                this.canvas.style.display = 'block';
+                
+                // Update buttons
+                this.elements.captureBtn.classList.add('hidden');
+                this.elements.retakeBtn.classList.remove('hidden');
+                this.elements.uploadBtn.classList.remove('hidden');
+                this.elements.uploadBtn.disabled = false;
+                
+                this.updateStatus('Selfie captured! Review and upload or retake.', 'success');
+            }
+
+            retake() {
+                this.video.style.display = 'block';
+                this.canvas.style.display = 'none';
+                
+                this.elements.retakeBtn.classList.add('hidden');
+                this.elements.uploadBtn.classList.add('hidden');
+                this.elements.captureBtn.classList.remove('hidden');
+                this.elements.captureBtn.disabled = false;
+                
+                this.capturedImage = null;
+                this.updateStatus('Camera ready. Position your face and capture again.', 'info');
+            }
+
+            async uploadSelfie() {
+                if (!this.capturedImage) {
+                    this.updateStatus('No image captured', 'error');
+                    return;
+                }
+
+                try {
+                    this.elements.uploadBtn.disabled = true;
+                    this.elements.uploadBtn.innerHTML = '<span class="loading"></span>Uploading...';
+                    this.updateStatus('Uploading and processing selfie...', 'info');
+
+                    const response = await fetch(`/upload-selfie/${this.sessionId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            image: this.capturedImage
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        this.updateStatus(`Verification successful! Confidence: ${Math.round(result.confidence * 100)}%`, 'success');
+                        this.disableAllButtons();
+                        this.stopCamera();
+                        
+                        setTimeout(() => {
+                            this.updateStatus('You can close this window now.', 'success');
+                        }, 2000);
+                        
+                    } else {
+                        throw new Error(result.error || 'Verification failed');
+                    }
+
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    this.updateStatus(`Upload failed: ${error.message}`, 'error');
+                    
+                    // Re-enable upload button
+                    this.elements.uploadBtn.disabled = false;
+                    this.elements.uploadBtn.innerHTML = '📤 Upload';
+                    
+                    // Reload session info to get updated attempts
+                    this.loadSessionInfo();
+                }
+            }
+
+            updateStatus(message, type = 'info') {
+                this.elements.status.textContent = message;
+                this.elements.status.className = `status ${type}`;
+            }
+
+            disableAllButtons() {
+                Object.values(this.elements).forEach(el => {
+                    if (el.tagName === 'BUTTON') {
+                        el.disabled = true;
+                    }
+                });
+            }
+
+            stopCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SelfieCapture();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (window.selfieCapture) {
+                window.selfieCapture.stopCamera();
+            }
+        });
+    </script>
+</body>
+</html>
